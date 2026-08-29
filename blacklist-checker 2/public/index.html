@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blacklist Checker — ArrowInBox</title>
+<meta name="description" content="Check whether your domain or IP is on any major email blacklist (DNSBL + URIBL).">
+<link rel="icon" href="logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--accent:#9B2242;--accent-d:#7E1B36;--accent-soft:#F7E7EC;--ink:#3B121E;--ink2:#5E1B2E;--muted:#6a5960;--line:#efe6e9;--cream:#fbf7f8;--font:'Plus Jakarta Sans',system-ui,sans-serif;--logo:'Baloo 2',var(--font)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);color:var(--ink);background:var(--cream);line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  header{background:#fff;border-bottom:1px solid var(--line)}
+  .nav{max-width:900px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;gap:10px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--logo);font-weight:800;font-size:21px}
+  .brand img{width:30px;height:30px}
+  .brand b{color:var(--accent)}
+  main{max-width:900px;margin:0 auto;padding:48px 24px 80px}
+  h1{font-size:clamp(30px,5vw,44px);font-weight:800;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:18px;margin:12px 0 30px;font-weight:500}
+  .search{display:flex;gap:10px;margin-bottom:16px}
+  .search input{flex:1;padding:15px 16px;border:1.5px solid var(--line);border-radius:12px;font-family:var(--font);font-size:16px;font-weight:600;color:var(--ink);background:#fff}
+  .search input:focus{outline:none;border-color:var(--accent)}
+  .btn{padding:15px 30px;border:0;border-radius:999px;background:var(--accent);color:#fff;font-family:var(--font);font-weight:700;font-size:16px;cursor:pointer;transition:.18s}
+  .btn:hover{background:var(--accent-d)}
+  .btn:disabled{opacity:.6;cursor:default}
+  .ip{font-size:13px;color:var(--muted);font-weight:700;min-height:18px;margin-bottom:14px}
+  .verdict{display:none;align-items:center;gap:14px;padding:16px 18px;border-radius:14px;margin-bottom:18px;font-weight:700;font-size:15px}
+  .verdict.show{display:flex}
+  .verdict.clean{background:#e8f7ef;color:#137a4c}
+  .verdict.bad{background:#fdeaea;color:#b3271e}
+  .verdict .vi{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex:0 0 auto;font-weight:800}
+  .verdict.clean .vi{background:#1a8f5b}
+  .verdict.bad .vi{background:#c0392b}
+  .list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 15px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px;font-weight:600}
+  .st{font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .st.checking{background:var(--cream);color:var(--muted)}
+  .st.clean{background:#e8f7ef;color:#137a4c}
+  .st.listed{background:#fdeaea;color:#b3271e}
+  .st.error{background:#f3f0ee;color:#9a8f88}
+  .note{margin-top:20px;font-size:12.5px;color:var(--muted);line-height:1.6}
+  @media(max-width:600px){.list{grid-template-columns:1fr}.search{flex-direction:column}.btn{width:100%}}
+</style>
+</head>
+<body>
+<header>
+  <div class="nav">
+    <a href="/" class="brand"><img src="logo.png" alt="">Arrow<b>InBox</b></a>
+  </div>
+</header>
+<main>
+  <h1>Blacklist Checker</h1>
+  <p class="sub">Check whether your domain or IP is listed on any major email blacklist.</p>
+  <div class="search">
+    <input type="text" id="inp" placeholder="yourdomain.com   or   1.2.3.4" autocomplete="off" spellcheck="false">
+    <button class="btn" id="btn">Check</button>
+  </div>
+  <div class="ip" id="ip"></div>
+  <div class="verdict" id="verdict"></div>
+  <div class="list" id="list"></div>
+  <p class="note">Runs live IP-based DNSBL and domain/URI blacklist lookups from this server's own resolver, so lists like SURBL, URIBL and Spamhaus return accurate results (unlike browser-only checkers, which those lists refuse). Hover any result to see the raw DNS code. Spamhaus lists may show <b>Unavailable</b> unless you set a free Spamhaus DQS key (see README). Nothing you enter is stored. DNSBL zone list based on the open-source <b>molodsom/rbl-check</b> project.</p>
+</main>
+<script>
+  const input=document.getElementById('inp'), btn=document.getElementById('btn'),
+        ipEl=document.getElementById('ip'), verdict=document.getElementById('verdict'), listEl=document.getElementById('list');
+  function showVerdict(t,m){verdict.className='verdict show '+t;verdict.innerHTML='<span class="vi">'+(t==='clean'?'\u2713':'!')+'</span><span>'+m+'</span>';}
+  function pill(e){var t=e.code?(' title="'+e.code+'"'):'';return e.status==='listed'?'<span class="st listed"'+t+'>Listed</span>':e.status==='error'?'<span class="st error"'+t+'>Unavailable</span>':'<span class="st clean">Clean</span>';}
+  async function run(){
+    const raw=(input.value||'').trim(); if(!raw) return;
+    verdict.className='verdict'; listEl.innerHTML=''; ipEl.textContent='Checking \u2026'; btn.disabled=true;
+    try{
+      const r=await fetch('/api/blacklist?host='+encodeURIComponent(raw));
+      const j=await r.json();
+      btn.disabled=false;
+      if(j.error||!j.ip){ ipEl.textContent=''; showVerdict('bad','Couldn\u2019t resolve \u201c'+(j.host||raw)+'\u201d. Check and try again.'); return; }
+      const isIp=/^(\d{1,3}\.){3}\d{1,3}$/.test(j.host);
+      ipEl.textContent='Resolved IP: '+j.ip+(isIp?'':'  \u00b7  Domain: '+j.host);
+      const results=j.results||[];
+      listEl.innerHTML=results.map(function(e){return '<div class="item"><span>'+e.n+'</span>'+pill(e)+'</div>';}).join('');
+      const listed=results.filter(function(e){return e.status==='listed';}).length;
+      if(listed>0) showVerdict('bad','Listed on '+listed+' of '+results.length+' blacklists \u2014 delisting recommended.');
+      else showVerdict('clean','Not listed on any of the '+results.length+' blacklists checked.');
+    }catch(e){ btn.disabled=false; showVerdict('bad','Check failed. Please try again.'); }
+  }
+  btn.onclick=run;
+  input.addEventListener('keydown',function(e){if(e.key==='Enter')run();});
+</script>
+</body>
+</html>

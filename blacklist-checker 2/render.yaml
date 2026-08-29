@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: arrowinbox-blacklist-checker
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # - key: SPAMHAUS_DQS_KEY   # optional: free Spamhaus DQS key for accurate Spamhaus results
+      #   sync: false
