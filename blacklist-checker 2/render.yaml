@@ -1,12 +1,11 @@
 services:
   - type: web
     name: arrowinbox-blacklist-checker
-    runtime: node
+    runtime: docker
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: NODE_VERSION
-        value: "20"
-      # - key: SPAMHAUS_DQS_KEY   # optional: free Spamhaus DQS key for accurate Spamhaus results
-      #   sync: false
+      - key: SPAMHAUS_DQS_KEY   # optional: free Spamhaus DQS key for accurate Spamhaus results
+        sync: false
+      # - key: RESOLVERS        # optional: comma-separated DNS resolvers, e.g. 1.1.1.1,8.8.8.8
+      #   value: ""
