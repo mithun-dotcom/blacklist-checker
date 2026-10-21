@@ -72,7 +72,7 @@
     const raw=(input.value||'').trim(); if(!raw) return;
     verdict.className='verdict'; listEl.innerHTML=''; ipEl.textContent='Checking \u2026'; btn.disabled=true;
     try{
-      const r=await fetch('/api/blacklist?host='+encodeURIComponent(raw));
+      const r=await fetch('api/blacklist.php?host='+encodeURIComponent(raw));
       const j=await r.json();
       btn.disabled=false;
       if(j.error||!j.ip){ ipEl.textContent=''; showVerdict('bad','Couldn\u2019t resolve \u201c'+(j.host||raw)+'\u201d. Check and try again.'); return; }

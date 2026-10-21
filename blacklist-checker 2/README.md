@@ -8,28 +8,41 @@ Because the lookups run **server-side from this app's own resolver**, lists such
 SURBL, URIBL and Spamhaus — which refuse queries from public browser resolvers —
 return accurate results, matching tools like MXToolbox at low volume.
 
-- Zero dependencies (Node's built-in `http` + `dns`).
-- One HTTP endpoint: `GET /api/blacklist?host=example.com` → JSON.
+- Plain PHP 8.1+, zero dependencies (built-in UDP DNS client, all lookups run in parallel).
+- One HTTP endpoint: `GET api/blacklist.php?host=example.com` → JSON.
+
+## Project layout
+```
+public/              web root
+  index.html         the checker UI
+  logo.png
+  api/blacklist.php  JSON endpoint
+src/blacklist.php    lookup logic (kept outside the web root)
+Dockerfile           PHP + Apache image (for Render or any Docker host)
+```
 
 ## Run locally
 ```bash
-npm start          # then open http://localhost:3000
+php -S localhost:8000 -t public     # then open http://localhost:8000
 ```
 
+## Deploy on shared hosting (cPanel etc.)
+Upload `public/` as your site's web root and `src/` next to it (one level up), so
+`public/api/blacklist.php` can load `../../src/blacklist.php`. The host must allow
+outbound UDP on port 53 (most do).
+
 ## Deploy on Render (from GitHub)
-1. Push this folder to a new GitHub repository.
-2. In Render, click **New → Web Service** and connect that repo
-   (the included `render.yaml` also works as a Blueprint: **New → Blueprint**).
-3. Settings (auto-detected from render.yaml):
-   - Runtime: **Node**
-   - Build command: `npm install`
-   - Start command: `npm start`
-4. Deploy. Render sets `PORT` automatically; the app reads it.
+Render has no native PHP runtime, so this uses the included `Dockerfile`.
+1. In Render, click **New → Web Service** and connect this repo
+   (or **New → Blueprint** to use `render.yaml`).
+2. Runtime: **Docker**. If this folder isn't the repo root, set **Root Directory**
+   to it.
+3. Deploy. Render sets `PORT` automatically; Apache listens on it.
 
 ## Optional configuration
 - `RESOLVERS` — comma-separated DNS resolvers to use, e.g. `RESOLVERS=1.1.1.1,8.8.8.8`.
   Leave unset to use the platform's default resolver (recommended).
-- Lock down CORS: in `server.js`, change `Access-Control-Allow-Origin: *`
+- Lock down CORS: in `public/api/blacklist.php`, change `Access-Control-Allow-Origin: *`
   to your own domain before production.
 
 ## Accuracy: Spamhaus DQS + resolver notes
